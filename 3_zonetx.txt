@@ -1,0 +1,99 @@
+hostname RH
+interface FastEthernet0/0
+ ip address 192.168.100.1 255.255.255.0
+no sh
+interface FastEthernet0/1
+ ip address 172.20.20.1 255.255.255.0
+no sh
+interface FastEthernet1/0
+ ip address 88.88.88.1 255.255.255.248
+no sh
+exit
+ip nat inside source list 1 interface FastEthernet1/0 overload
+ip nat inside source static 172.20.20.100 88.88.88.3 
+
+ip route 0.0.0.0 0.0.0.0 FastEthernet1/0 
+
+access-list 1 permit 192.168.100.0 0.0.0.255
+
+int fa0/0
+ip nat inside
+int fa0/1
+ip nat inside
+int fa1/0
+ip nat outside
+exit
+
+-----------------------------------
+1. zónák létrehozása
+
+zone security INTERNET
+zone security PRIVATE
+zone security DMZ
+
+2. forgalomcsoportok megadása
+
+class-map type inspect match-any
+
+class-map type inspect match-any HTTP-TRAFFIC
+match protocol http
+match protocol https
+match protocol dns
+class-map type inspect match-any HTTP-PRIVATE
+match protocol icmp
+match protocol tcp
+match protocol dns
+class-map type inspect match-any HTTP-DMZ
+match protocol icmp
+match protocol ftp
+match protocol http
+match protocol ssh
+match protocol telnet
+match protocol https
+exit
+
+3. mi történjen a forgalommal
+
+policy-map type inspect INT-TO-DMZ
+class type inspect HTTP-TRAFFIC
+inspect
+policy type inspect DMZ-TO-INT
+class type inspect HTTP-TRAFFIC
+inspect
+policy-map type inspect PRIV-TO-DMZ
+class type inspect PRIV-DMZ
+inspect
+policy-map type inspect PRIV-TO-INT
+class type inspect PRIV-INT
+inspect
+exit
+exit
+
+4. zóna párok összerendelése policy-val
+
+zone-pair security INT-DMZ source INTERNET destination DMZ
+service-policy type inspect INT-TO-DMZ
+zone-pair security DMZ-INT source DMZ destination INTERNET
+service-policy type inspect DMZ-TO-INT
+zone-pair security PRIVATE-INT source PRIVATE destination INTERNET
+service-policy type inspect PRIV-TO-INT
+zone-pair security PRIVATE-DMZ source PRIVATE destination DMZ
+service-policy type inspect PRIV-TO-DMZ
+exit
+
+5. Interfészek hozzárendelése a zónákhoz
+
+int fa0/0
+zone-member security PRIVATE
+int fa0/1
+zone-member security DMZ
+int fa1/0
+zone-member security INTERNET
+exit
+
+
+
+
+
+
+
